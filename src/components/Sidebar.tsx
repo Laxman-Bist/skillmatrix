@@ -40,7 +40,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             <div className="bg-white rounded-md p-1.5">
               <BarChart2 className="h-6 w-6 text-primary-700" />
             </div>
-            <span className="text-xl font-bold">SkiLLMatrix</span>
+            <span className="text-xl font-bold">
+  Ski
+  <span className="text-2xl text-blue-600 font-extrabold">LLM</span>
+  atrix
+</span>
+
           </Link>
           <button
             onClick={onClose}
