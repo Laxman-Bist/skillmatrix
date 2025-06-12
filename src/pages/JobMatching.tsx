@@ -9,6 +9,7 @@ interface JobMatchResult {
   score: number;
   matchedSkills: number;
   missingSkills: string[];
+  matchedSkillNames: string[];
   employee: typeof employees[0];
 }
 
@@ -53,12 +54,20 @@ const JobMatching: React.FC = () => {
           const employee = employees.find(emp => emp.id === result.employeeId);
           if (!employee) return null;
           
+          // Calculate matched skill names based on employee skills and job requirements
+          const employeeSkillNames = employee.skills.map(s => s.name.toLowerCase());
+          const jobSkillNames = job.requiredSkills.map(s => s.name.toLowerCase());
+          const matchedSkillNames = employee.skills
+            .filter(skill => jobSkillNames.includes(skill.name.toLowerCase()))
+            .map(skill => skill.name);
+          
           return {
             employeeId: result.employeeId,
             jobId: job.id,
             score: result.score,
             matchedSkills: result.matchedSkills,
             missingSkills: result.missingSkills,
+            matchedSkillNames: matchedSkillNames,
             employee
           };
         })
@@ -335,31 +344,47 @@ const JobMatching: React.FC = () => {
                               </div>
                             </div>
                             
-                            {/* Match Details */}
-                            <div className="space-y-2">
-                              <div className="flex justify-between text-xs">
-                                <span className="text-gray-600">Matched Skills:</span>
-                                <span className="text-success-600 font-medium">{candidate.matchedSkills}</span>
-                              </div>
-                              
-                              {candidate.missingSkills.length > 0 && (
-                                <div>
-                                  <p className="text-xs text-gray-600 mb-1">Missing:</p>
-                                  <div className="flex flex-wrap gap-1">
-                                    {candidate.missingSkills.slice(0, 2).map((skill, i) => (
-                                      <span key={i} className="text-xs bg-error-100 text-error-700 px-1.5 py-0.5 rounded">
-                                        {skill}
-                                      </span>
-                                    ))}
-                                    {candidate.missingSkills.length > 2 && (
-                                      <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">
-                                        +{candidate.missingSkills.length - 2}
-                                      </span>
-                                    )}
-                                  </div>
+                            {/* Matched Skills */}
+                            {candidate.matchedSkillNames.length > 0 && (
+                              <div className="mb-3">
+                                <p className="text-xs text-success-600 font-medium mb-1">
+                                  Matched Skills ({candidate.matchedSkillNames.length}):
+                                </p>
+                                <div className="flex flex-wrap gap-1">
+                                  {candidate.matchedSkillNames.slice(0, 3).map((skill, i) => (
+                                    <span key={i} className="text-xs bg-success-100 text-success-700 px-1.5 py-0.5 rounded">
+                                      {skill}
+                                    </span>
+                                  ))}
+                                  {candidate.matchedSkillNames.length > 3 && (
+                                    <span className="text-xs bg-success-200 text-success-600 px-1.5 py-0.5 rounded">
+                                      +{candidate.matchedSkillNames.length - 3}
+                                    </span>
+                                  )}
                                 </div>
-                              )}
-                            </div>
+                              </div>
+                            )}
+                            
+                            {/* Missing Skills */}
+                            {candidate.missingSkills.length > 0 && (
+                              <div className="mb-3">
+                                <p className="text-xs text-error-600 font-medium mb-1">
+                                  Missing Skills ({candidate.missingSkills.length}):
+                                </p>
+                                <div className="flex flex-wrap gap-1">
+                                  {candidate.missingSkills.slice(0, 2).map((skill, i) => (
+                                    <span key={i} className="text-xs bg-error-100 text-error-700 px-1.5 py-0.5 rounded">
+                                      {skill}
+                                    </span>
+                                  ))}
+                                  {candidate.missingSkills.length > 2 && (
+                                    <span className="text-xs bg-error-200 text-error-600 px-1.5 py-0.5 rounded">
+                                      +{candidate.missingSkills.length - 2}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                             
                             {/* Action Button */}
                             <button className="btn btn-primary w-full mt-3 text-xs py-1.5">

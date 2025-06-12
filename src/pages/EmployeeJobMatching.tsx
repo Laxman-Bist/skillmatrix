@@ -52,18 +52,26 @@ const EmployeeJobMatching: React.FC = () => {
       // Simulate API call for resume analysis
       await new Promise(resolve => setTimeout(resolve, 3000));
 
-      // Mock analysis results
-      const mockResults: ResumeAnalysisResult[] = jobs.map(job => ({
-        jobId: job.id,
-        matchScore: Math.floor(Math.random() * 40) + 60, // 60-100% match
-        matchedSkills: job.requiredSkills.slice(0, Math.floor(Math.random() * 3) + 2).map(s => s.name),
-        missingSkills: job.requiredSkills.slice(-2).map(s => s.name),
-        recommendations: [
-          'Consider developing skills in the missing areas',
-          'Highlight relevant experience in your application',
-          'Network with current employees in this department'
-        ]
-      }));
+      // Mock analysis results with more detailed skill matching
+      const mockResults: ResumeAnalysisResult[] = jobs.map(job => {
+        const matchScore = Math.floor(Math.random() * 40) + 60; // 60-100% match
+        const allJobSkills = job.requiredSkills.map(s => s.name);
+        const numMatchedSkills = Math.floor(allJobSkills.length * (matchScore / 100));
+        const matchedSkills = allJobSkills.slice(0, numMatchedSkills);
+        const missingSkills = allJobSkills.slice(numMatchedSkills);
+        
+        return {
+          jobId: job.id,
+          matchScore,
+          matchedSkills,
+          missingSkills,
+          recommendations: [
+            'Consider developing skills in the missing areas',
+            'Highlight relevant experience in your application',
+            'Network with current employees in this department'
+          ]
+        };
+      });
 
       // Sort by match score
       mockResults.sort((a, b) => b.matchScore - a.matchScore);
