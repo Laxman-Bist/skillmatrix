@@ -1,8 +1,16 @@
 import axios from 'axios';
 import { Employee, Job, LearningPath } from '../types';
+import { 
+  getMockLearningPath, 
+  getMockDepartmentRecommendations, 
+  getMockJobMatches 
+} from './mockResponses';
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+
+// Feature flag to use mock responses instead of API calls
+const USE_MOCK_RESPONSES = true; // Set to false when you want to use real API
 
 // Retry configuration
 const MAX_RETRIES = 3;
@@ -57,6 +65,34 @@ export const generateLearningPath = async (
   employee: Employee,
   targetJob: Job
 ): Promise<LearningPath | null> => {
+  // Use mock response if flag is set
+  if (USE_MOCK_RESPONSES) {
+    console.log('Using mock response for learning path generation');
+    
+    // Simulate API delay
+    await wait(2000);
+    
+    const mockResponse = getMockLearningPath(employee.id, targetJob.id);
+    
+    return {
+      id: crypto.randomUUID(),
+      employeeId: employee.id,
+      targetSkills: mockResponse.targetSkills || [],
+      resources: (mockResponse.resources || []).map((resource: any) => ({
+        id: crypto.randomUUID(),
+        title: resource.title || 'Untitled Resource',
+        provider: resource.provider || 'Unknown Provider',
+        skillsAddressed: resource.skillsAddressed || [],
+        level: resource.level || 'Intermediate',
+        duration: resource.duration || '1 hour',
+        type: resource.type || 'Course',
+        url: resource.url || 'https://example.com'
+      })),
+      estimatedCompletionTime: mockResponse.estimatedTime || '2 weeks',
+      priority: mockResponse.priority || 'Medium'
+    };
+  }
+
   if (!API_KEY) {
     console.error('Gemini API key not found in environment variables');
     throw new Error('API key not configured. Please check your environment variables.');
@@ -166,6 +202,16 @@ export const generateDepartmentRecommendations = async (
   currentSkills: Array<{ name: string; level: number }>,
   requiredSkills: Array<{ name: string; level: number }>
 ) => {
+  // Use mock response if flag is set
+  if (USE_MOCK_RESPONSES) {
+    console.log('Using mock response for department recommendations');
+    
+    // Simulate API delay
+    await wait(2500);
+    
+    return getMockDepartmentRecommendations(departmentName);
+  }
+
   if (!API_KEY) {
     console.error('Gemini API key not found in environment variables');
     throw new Error('API key not configured. Please check your environment variables.');
@@ -231,6 +277,16 @@ export const calculateBatchJobMatches = async (
   employees: Employee[],
   job: Job
 ): Promise<Array<{ employeeId: string; score: number; matchedSkills: number; missingSkills: string[] }>> => {
+  // Use mock response if flag is set
+  if (USE_MOCK_RESPONSES) {
+    console.log('Using mock response for batch job matching');
+    
+    // Simulate API delay
+    await wait(3000);
+    
+    return getMockJobMatches(job.id);
+  }
+
   if (!API_KEY) {
     console.error('Gemini API key not found in environment variables');
     throw new Error('API key not configured. Please check your environment variables.');
@@ -330,6 +386,33 @@ export const calculateJobMatchScore = async (
   employee: Employee,
   job: Job
 ): Promise<{ score: number; matchedSkills: number; missingSkills: string[] } | null> => {
+  // Use mock response if flag is set
+  if (USE_MOCK_RESPONSES) {
+    console.log('Using mock response for individual job matching');
+    
+    // Simulate API delay
+    await wait(1500);
+    
+    // Get mock data for this job and find the employee
+    const mockData = getMockJobMatches(job.id);
+    const employeeMatch = mockData.find(match => match.employeeId === employee.id);
+    
+    if (employeeMatch) {
+      return {
+        score: employeeMatch.score,
+        matchedSkills: employeeMatch.matchedSkills,
+        missingSkills: employeeMatch.missingSkills
+      };
+    }
+    
+    // Fallback if employee not found in mock data
+    return {
+      score: Math.floor(Math.random() * 40) + 40, // 40-80% match
+      matchedSkills: Math.floor(Math.random() * 3) + 1,
+      missingSkills: ['Skill Gap 1', 'Skill Gap 2']
+    };
+  }
+
   if (!API_KEY) {
     console.error('Gemini API key not found in environment variables');
     throw new Error('API key not configured. Please check your environment variables.');
