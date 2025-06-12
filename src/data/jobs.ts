@@ -5,6 +5,7 @@ export const jobs: Job[] = [
     id: '1',
     title: 'Full Stack Developer',
     department: 'Engineering',
+    jobLevel: '603',
     requiredSkills: [
       { id: '1', name: 'JavaScript', importance: 'required', minimumLevel: 4 },
       { id: '2', name: 'React', importance: 'required', minimumLevel: 3 },
@@ -21,6 +22,7 @@ export const jobs: Job[] = [
     id: '2',
     title: 'UX/UI Designer',
     department: 'Design',
+    jobLevel: '602',
     requiredSkills: [
       { id: '6', name: 'UI Design', importance: 'required', minimumLevel: 4 },
       { id: '7', name: 'User Research', importance: 'required', minimumLevel: 3 },
@@ -37,6 +39,7 @@ export const jobs: Job[] = [
     id: '3',
     title: 'Data Analyst',
     department: 'Analytics',
+    jobLevel: '502',
     requiredSkills: [
       { id: '15', name: 'Data Analysis', importance: 'required', minimumLevel: 4 },
       { id: '18', name: 'SQL', importance: 'required', minimumLevel: 4 },
@@ -48,5 +51,39 @@ export const jobs: Job[] = [
     postedDate: '2024-01-10',
     location: 'Remote',
     isRemote: true,
+  },
+  {
+    id: '4',
+    title: 'Senior Product Manager',
+    department: 'Product',
+    jobLevel: '605',
+    requiredSkills: [
+      { id: '11', name: 'Product Strategy', importance: 'required', minimumLevel: 4 },
+      { id: '12', name: 'Agile Methodology', importance: 'required', minimumLevel: 4 },
+      { id: '13', name: 'Market Research', importance: 'required', minimumLevel: 3 },
+      { id: '14', name: 'Leadership', importance: 'required', minimumLevel: 4 },
+      { id: '15', name: 'Data Analysis', importance: 'preferred', minimumLevel: 3 },
+    ],
+    description: 'Lead product strategy and development for our core platform. Requires strong leadership skills and experience with agile methodologies.',
+    postedDate: '2024-01-20',
+    location: 'San Francisco, CA',
+    isRemote: true,
+  },
+  {
+    id: '5',
+    title: 'Junior Marketing Specialist',
+    department: 'Marketing',
+    jobLevel: '501',
+    requiredSkills: [
+      { id: '26', name: 'Digital Marketing', importance: 'required', minimumLevel: 2 },
+      { id: '27', name: 'Content Strategy', importance: 'preferred', minimumLevel: 2 },
+      { id: '28', name: 'Analytics', importance: 'preferred', minimumLevel: 2 },
+      { id: '29', name: 'Communication', importance: 'required', minimumLevel: 3 },
+      { id: '30', name: 'Project Management', importance: 'preferred', minimumLevel: 2 },
+    ],
+    description: 'Entry-level position for a marketing specialist to support digital marketing campaigns and content creation.',
+    postedDate: '2024-02-01',
+    location: 'New York, NY',
+    isRemote: false,
   },
 ];

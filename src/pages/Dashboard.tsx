@@ -1,10 +1,10 @@
 import React from 'react';
-import { BarChart, PieChart, TrendingUp, Users, Award, Lightbulb, AlertTriangle } from 'lucide-react';
+import { BarChart, PieChart, TrendingUp, Users, Award, Lightbulb, AlertTriangle, Layers } from 'lucide-react';
 import { dashboardData } from '../data';
 import DoughnutChart from '../components/DoughnutChart';
 
 const Dashboard: React.FC = () => {
-  const { departmentBreakdown, skillDistribution, topSkillGaps, recentActivities } = dashboardData;
+  const { departmentBreakdown, skillDistribution, jobLevelDistribution, topSkillGaps, recentActivities } = dashboardData;
   
   const departmentChartData = {
     labels: departmentBreakdown.map(dept => dept.department),
@@ -14,6 +14,11 @@ const Dashboard: React.FC = () => {
   const skillChartData = {
     labels: skillDistribution.map(skill => skill.category),
     values: skillDistribution.map(skill => skill.count),
+  };
+  
+  const jobLevelChartData = {
+    labels: jobLevelDistribution.map(level => level.levelName),
+    values: jobLevelDistribution.map(level => level.count),
   };
   
   return (
@@ -42,8 +47,8 @@ const Dashboard: React.FC = () => {
               </div>
               
               <div className="bg-gray-50 rounded-lg p-4 text-center">
-                <p className="text-sm text-gray-500">Critical Skill Gaps</p>
-                <p className="text-3xl font-bold text-accent-500">{topSkillGaps.filter(gap => gap.gap >= 1).length}</p>
+                <p className="text-sm text-gray-500">Job Levels</p>
+                <p className="text-3xl font-bold text-accent-500">{jobLevelDistribution.length}</p>
               </div>
             </div>
           </div>
@@ -72,7 +77,7 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="h-80">
           <DoughnutChart 
             data={departmentChartData} 
@@ -84,6 +89,18 @@ const Dashboard: React.FC = () => {
           <DoughnutChart 
             data={skillChartData} 
             title="Skill Distribution by Category" 
+          />
+        </div>
+        
+        <div className="h-80">
+          <DoughnutChart 
+            data={jobLevelChartData} 
+            title="Job Level Distribution" 
+            colorScheme={[
+              '#1E3A8A', '#0F766E', '#F97066', 
+              '#15803D', '#B45309', '#991B1B',
+              '#4338CA'
+            ]}
           />
         </div>
       </div>

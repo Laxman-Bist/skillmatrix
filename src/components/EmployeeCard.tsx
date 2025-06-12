@@ -27,6 +27,9 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ employee }) => {
           <h3 className="text-lg font-semibold">{employee.name}</h3>
           <p className="text-gray-600 text-sm">{employee.position}</p>
           <p className="text-gray-500 text-xs">{employee.department}</p>
+          <span className="badge badge-secondary text-xs mt-1">
+            Level {employee.jobLevel}
+          </span>
         </div>
       </div>
       

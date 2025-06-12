@@ -1,6 +1,6 @@
 import React from 'react';
 import { Job } from '../types';
-import { CalendarDays, MapPin } from 'lucide-react';
+import { CalendarDays, MapPin, Layers } from 'lucide-react';
 
 interface JobCardProps {
   job: Job;
@@ -19,6 +19,9 @@ const JobCard: React.FC<JobCardProps> = ({ job, matchScore }) => {
         <div>
           <h3 className="text-lg font-semibold">{job.title}</h3>
           <p className="text-gray-600 text-sm">{job.department}</p>
+          <span className="badge badge-secondary text-xs mt-1">
+            Level {job.jobLevel}
+          </span>
         </div>
         {matchScore !== undefined && (
           <div className={`text-white text-sm font-medium rounded-full h-10 w-10 flex items-center justify-center ${
@@ -38,6 +41,10 @@ const JobCard: React.FC<JobCardProps> = ({ job, matchScore }) => {
         <div className="flex items-center">
           <CalendarDays size={16} className="mr-2 text-gray-400" />
           <span>Posted: {new Date(job.postedDate).toLocaleDateString()}</span>
+        </div>
+        <div className="flex items-center">
+          <Layers size={16} className="mr-2 text-gray-400" />
+          <span>Job Level: {job.jobLevel}</span>
         </div>
       </div>
       

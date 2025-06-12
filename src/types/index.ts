@@ -8,6 +8,7 @@ export interface Employee {
   skills: Skill[];
   joinDate: string;
   projects: string[];
+  jobLevel: string; // Added job level
 }
 
 export interface Skill {
@@ -33,6 +34,7 @@ export interface Job {
   postedDate: string;
   location: string;
   isRemote: boolean;
+  jobLevel: string; // Added job level
 }
 
 export interface JobSkill {
