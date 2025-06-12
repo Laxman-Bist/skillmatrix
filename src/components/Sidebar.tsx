@@ -42,7 +42,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             </div>
             <span className="text-xl font-bold">
   Ski
-  <span className="text-2xl text-blue-600 font-extrabold">LLM</span>
+  <span className="text-2xl text-red-600 font-extrabold">LLM</span>
   atrix
 </span>
 
