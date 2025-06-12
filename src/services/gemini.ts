@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Employee, Job, LearningPath } from '../types';
 
-const API_KEY = `AIzaSyA55vkI6vrrN3yHgZ4ckYlj9MRHKSrEhKs`;
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${API_KEY}`;
 
 const LEARNING_PATH_CONTEXT = `
@@ -31,6 +31,11 @@ export const generateLearningPath = async (
   employee: Employee,
   targetJob: Job
 ): Promise<LearningPath | null> => {
+  if (!API_KEY) {
+    console.error('Gemini API key not found in environment variables');
+    throw new Error('API key not configured. Please check your environment variables.');
+  }
+
   const prompt = JSON.stringify({
     employee: {
       currentSkills: employee.skills,
@@ -73,9 +78,17 @@ export const generateLearningPath = async (
       estimatedCompletionTime: suggestion.estimatedTime,
       priority: suggestion.priority
     };
-  } catch (error) {
-    console.error('Error generating learning path:', error);
-    return null;
+  } catch (error: any) {
+    if (error.response?.status === 429) {
+      console.error('Rate limit exceeded for Gemini API');
+      throw new Error('API rate limit exceeded. Please try again later or check your API quota.');
+    } else if (error.response?.status === 403) {
+      console.error('Invalid or expired API key');
+      throw new Error('Invalid API key. Please check your Gemini API key configuration.');
+    } else {
+      console.error('Error generating learning path:', error);
+      throw new Error('Failed to generate learning path. Please try again.');
+    }
   }
 };
 
@@ -98,6 +111,11 @@ export const generateDepartmentRecommendations = async (
   currentSkills: Array<{ name: string; level: number }>,
   requiredSkills: Array<{ name: string; level: number }>
 ) => {
+  if (!API_KEY) {
+    console.error('Gemini API key not found in environment variables');
+    throw new Error('API key not configured. Please check your environment variables.');
+  }
+
   const prompt = JSON.stringify({
     department: departmentName,
     currentSkills,
@@ -121,8 +139,16 @@ export const generateDepartmentRecommendations = async (
     });
 
     return JSON.parse(response.data.candidates[0].content.parts[0].text);
-  } catch (error) {
-    console.error('Error generating recommendations:', error);
-    return null;
+  } catch (error: any) {
+    if (error.response?.status === 429) {
+      console.error('Rate limit exceeded for Gemini API');
+      throw new Error('API rate limit exceeded. Please try again later or check your API quota.');
+    } else if (error.response?.status === 403) {
+      console.error('Invalid or expired API key');
+      throw new Error('Invalid API key. Please check your Gemini API key configuration.');
+    } else {
+      console.error('Error generating recommendations:', error);
+      throw new Error('Failed to generate recommendations. Please try again.');
+    }
   }
 };
