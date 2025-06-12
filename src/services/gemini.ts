@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Employee, Job, LearningPath } from '../types';
 
-const API_KEY = process.env.VITE_GEMINI_API_KEY;
+const API_KEY = `AIzaSyA55vkI6vrrN3yHgZ4ckYlj9MRHKSrEhKs`;
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${API_KEY}`;
 
 const LEARNING_PATH_CONTEXT = `
