@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Briefcase, Users, Search, Filter, Upload, Star, TrendingUp, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Briefcase, Users, Search, Filter, Upload, Star, TrendingUp, Loader2, AlertCircle, RefreshCw, Zap } from 'lucide-react';
 import { employees, jobs } from '../data';
-import { calculateJobMatchScore } from '../services/gemini';
+import { calculateBatchJobMatches } from '../services/gemini';
 
 interface JobMatchResult {
   employeeId: string;
@@ -35,7 +35,7 @@ const JobMatching: React.FC = () => {
     return matchesSearch && matchesDepartment;
   });
 
-  // Function to calculate matches for a specific job
+  // Function to calculate matches for a specific job using batch processing
   const calculateMatchesForJob = async (jobId: string) => {
     const job = jobs.find(j => j.id === jobId);
     if (!job) return;
@@ -44,31 +44,28 @@ const JobMatching: React.FC = () => {
     setErrors(prev => ({ ...prev, [jobId]: '' }));
 
     try {
-      const matchPromises = employees.map(async (employee) => {
-        try {
-          const matchResult = await calculateJobMatchScore(employee, job);
-          if (matchResult) {
-            return {
-              employeeId: employee.id,
-              jobId: job.id,
-              score: matchResult.score,
-              matchedSkills: matchResult.matchedSkills,
-              missingSkills: matchResult.missingSkills,
-              employee
-            };
-          }
-          return null;
-        } catch (error) {
-          console.error(`Error calculating match for employee ${employee.id}:`, error);
-          return null;
-        }
-      });
-
-      const results = await Promise.all(matchPromises);
-      const validResults = results.filter(Boolean) as JobMatchResult[];
+      // Use batch processing to analyze all employees at once
+      const batchResults = await calculateBatchJobMatches(employees, job);
+      
+      // Convert results to JobMatchResult format
+      const jobMatchResults: JobMatchResult[] = batchResults
+        .map(result => {
+          const employee = employees.find(emp => emp.id === result.employeeId);
+          if (!employee) return null;
+          
+          return {
+            employeeId: result.employeeId,
+            jobId: job.id,
+            score: result.score,
+            matchedSkills: result.matchedSkills,
+            missingSkills: result.missingSkills,
+            employee
+          };
+        })
+        .filter(Boolean) as JobMatchResult[];
       
       // Sort by score (highest first) and take top 5
-      const topCandidates = validResults
+      const topCandidates = jobMatchResults
         .sort((a, b) => b.score - a.score)
         .slice(0, 5);
 
@@ -96,13 +93,29 @@ const JobMatching: React.FC = () => {
     calculateMatchesForJob(jobId);
   };
 
+  // Function to analyze all visible jobs at once
+  const analyzeAllJobs = async () => {
+    const jobsToAnalyze = filteredJobs.filter(job => !jobMatches[job.id] && !loadingJobs.has(job.id));
+    
+    // Process jobs in smaller batches to avoid overwhelming the API
+    const batchSize = 2;
+    for (let i = 0; i < jobsToAnalyze.length; i += batchSize) {
+      const batch = jobsToAnalyze.slice(i, i + batchSize);
+      await Promise.all(batch.map(job => calculateMatchesForJob(job.id)));
+      
+      // Add a small delay between batches to be respectful to the API
+      if (i + batchSize < jobsToAnalyze.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+  };
+
   // Auto-calculate matches for visible jobs when component mounts
   useEffect(() => {
-    filteredJobs.forEach(job => {
-      if (!jobMatches[job.id] && !loadingJobs.has(job.id)) {
-        calculateMatchesForJob(job.id);
-      }
-    });
+    const hasUnanalyzedJobs = filteredJobs.some(job => !jobMatches[job.id] && !loadingJobs.has(job.id));
+    if (hasUnanalyzedJobs) {
+      analyzeAllJobs();
+    }
   }, [filteredJobs]);
   
   return (
@@ -148,6 +161,15 @@ const JobMatching: React.FC = () => {
               ))}
             </select>
           </div>
+          
+          <button 
+            onClick={analyzeAllJobs}
+            disabled={loadingJobs.size > 0}
+            className="btn btn-accent flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Zap className="mr-2 h-4 w-4" />
+            {loadingJobs.size > 0 ? 'Analyzing...' : 'Analyze All Jobs'}
+          </button>
           
           <button 
             className="btn btn-secondary flex items-center"
@@ -251,8 +273,8 @@ const JobMatching: React.FC = () => {
                     ) : isLoading ? (
                       <div className="text-center py-8">
                         <Loader2 className="h-8 w-8 mx-auto mb-3 text-primary-600 animate-spin" />
-                        <p className="text-gray-600">AI is analyzing employee skills against job requirements...</p>
-                        <p className="text-gray-500 text-sm mt-1">This may take a few moments</p>
+                        <p className="text-gray-600">AI is analyzing all employee skills against job requirements...</p>
+                        <p className="text-gray-500 text-sm mt-1">Using batch processing for faster results</p>
                       </div>
                     ) : topCandidates.length === 0 ? (
                       <div className="text-center py-8 text-gray-500">

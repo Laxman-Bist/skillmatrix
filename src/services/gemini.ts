@@ -226,6 +226,106 @@ Please respond with ONLY a JSON object in this exact format:
   }
 };
 
+// Batch processing function for job matching
+export const calculateBatchJobMatches = async (
+  employees: Employee[],
+  job: Job
+): Promise<Array<{ employeeId: string; score: number; matchedSkills: number; missingSkills: string[] }>> => {
+  if (!API_KEY) {
+    console.error('Gemini API key not found in environment variables');
+    throw new Error('API key not configured. Please check your environment variables.');
+  }
+
+  // Create a comprehensive prompt that analyzes all employees at once
+  const prompt = `You are an AI recruitment specialist. Analyze how well each employee matches the job position based on their skills and experience. Provide a comprehensive analysis for all employees.
+
+Job Requirements:
+- Title: ${job.title}
+- Department: ${job.department}
+- Job Level: ${job.jobLevel}
+- Required Skills: ${job.requiredSkills.map(s => `${s.name} (Min Level ${s.minimumLevel}, Importance: ${s.importance})`).join(', ')}
+- Location: ${job.location}
+- Remote: ${job.isRemote}
+
+Employees to Analyze:
+${employees.map((emp, index) => `
+Employee ${index + 1} (ID: ${emp.id}):
+- Name: ${emp.name}
+- Current Position: ${emp.position}
+- Department: ${emp.department}
+- Job Level: ${emp.jobLevel}
+- Current Skills: ${emp.skills.map(s => `${s.name} (Level ${s.level}, Category: ${s.category})`).join(', ')}
+- Years of Experience: ${new Date().getFullYear() - new Date(emp.joinDate).getFullYear()} years
+`).join('')}
+
+Scoring Criteria:
+1. Skill match percentage (0-100)
+2. Consider skill levels vs requirements
+3. Weight by importance (required > preferred > nice-to-have)
+4. Factor in job level compatibility
+5. Consider department experience
+6. Account for transferable skills
+
+Please respond with ONLY a JSON array in this exact format:
+[
+  {
+    "employeeId": "${employees[0]?.id}",
+    "score": 85,
+    "matchedSkills": 4,
+    "missingSkills": ["skill1", "skill2"]
+  }
+]`;
+
+  try {
+    const requestData = {
+      contents: [{
+        parts: [{ text: prompt }]
+      }],
+      generationConfig: {
+        temperature: 0.3,
+        topK: 20,
+        topP: 0.8,
+        maxOutputTokens: 4096,
+      }
+    };
+
+    const responseText = await makeGeminiRequest(requestData);
+    
+    // Clean the response text to extract JSON
+    let cleanedResponse = responseText.trim();
+    
+    // Remove any markdown code blocks
+    if (cleanedResponse.startsWith('```json')) {
+      cleanedResponse = cleanedResponse.replace(/```json\n?/, '').replace(/\n?```$/, '');
+    } else if (cleanedResponse.startsWith('```')) {
+      cleanedResponse = cleanedResponse.replace(/```\n?/, '').replace(/\n?```$/, '');
+    }
+    
+    const results = JSON.parse(cleanedResponse);
+
+    // Validate and sanitize results
+    return results.map((result: any) => ({
+      employeeId: result.employeeId,
+      score: Math.min(Math.max(result.score || 0, 0), 100), // Ensure score is between 0-100
+      matchedSkills: result.matchedSkills || 0,
+      missingSkills: result.missingSkills || []
+    }));
+  } catch (error: any) {
+    console.error('Error calculating batch job matches:', error);
+    
+    if (error.response?.status === 429) {
+      throw new Error('API rate limit exceeded. Please try again later or check your API quota.');
+    } else if (error.response?.status === 403) {
+      throw new Error('Invalid API key. Please check your Gemini API key configuration.');
+    } else if (error.response?.status === 400) {
+      throw new Error('Invalid request format. Please try again.');
+    } else {
+      throw new Error('Failed to calculate job matches. Please try again.');
+    }
+  }
+};
+
+// Individual job match calculation (fallback for smaller batches)
 export const calculateJobMatchScore = async (
   employee: Employee,
   job: Job
