@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Briefcase, Users, Search, Filter, Upload, Star, TrendingUp, Loader2, AlertCircle, RefreshCw, Zap } from 'lucide-react';
 import { employees, jobs } from '../data';
 import { calculateBatchJobMatches } from '../services/gemini';
@@ -97,6 +97,10 @@ const JobMatching: React.FC = () => {
   const analyzeAllJobs = async () => {
     const jobsToAnalyze = filteredJobs.filter(job => !jobMatches[job.id] && !loadingJobs.has(job.id));
     
+    if (jobsToAnalyze.length === 0) {
+      return; // No jobs to analyze
+    }
+    
     // Process jobs in smaller batches to avoid overwhelming the API
     const batchSize = 2;
     for (let i = 0; i < jobsToAnalyze.length; i += batchSize) {
@@ -110,13 +114,8 @@ const JobMatching: React.FC = () => {
     }
   };
 
-  // Auto-calculate matches for visible jobs when component mounts
-  useEffect(() => {
-    const hasUnanalyzedJobs = filteredJobs.some(job => !jobMatches[job.id] && !loadingJobs.has(job.id));
-    if (hasUnanalyzedJobs) {
-      analyzeAllJobs();
-    }
-  }, [filteredJobs]);
+  // Check if there are unanalyzed jobs
+  const hasUnanalyzedJobs = filteredJobs.some(job => !jobMatches[job.id] && !loadingJobs.has(job.id));
   
   return (
     <div className="space-y-6 animate-slide-up">
@@ -162,14 +161,16 @@ const JobMatching: React.FC = () => {
             </select>
           </div>
           
-          <button 
-            onClick={analyzeAllJobs}
-            disabled={loadingJobs.size > 0}
-            className="btn btn-accent flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Zap className="mr-2 h-4 w-4" />
-            {loadingJobs.size > 0 ? 'Analyzing...' : 'Analyze All Jobs'}
-          </button>
+          {hasUnanalyzedJobs && (
+            <button 
+              onClick={analyzeAllJobs}
+              disabled={loadingJobs.size > 0}
+              className="btn btn-accent flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Zap className="mr-2 h-4 w-4" />
+              {loadingJobs.size > 0 ? 'Analyzing...' : 'Analyze All Jobs'}
+            </button>
+          )}
           
           <button 
             className="btn btn-secondary flex items-center"
@@ -190,6 +191,7 @@ const JobMatching: React.FC = () => {
               const topCandidates = jobMatches[job.id] || [];
               const isLoading = loadingJobs.has(job.id);
               const error = errors[job.id];
+              const hasBeenAnalyzed = jobMatches[job.id] !== undefined;
               
               return (
                 <div key={job.id} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
@@ -219,7 +221,9 @@ const JobMatching: React.FC = () => {
                             <TrendingUp className="h-4 w-4 mr-1" />
                           )}
                           <span className="text-sm font-medium">
-                            {isLoading ? 'Analyzing candidates...' : `${topCandidates.length} candidates analyzed`}
+                            {isLoading ? 'Analyzing candidates...' : 
+                             hasBeenAnalyzed ? `${topCandidates.length} candidates analyzed` : 
+                             'Not analyzed yet'}
                           </span>
                         </div>
                         <button
@@ -228,7 +232,7 @@ const JobMatching: React.FC = () => {
                           className="btn btn-secondary text-xs py-1.5 px-3 flex items-center disabled:opacity-50"
                         >
                           <RefreshCw className={`h-3 w-3 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
-                          Refresh Analysis
+                          {hasBeenAnalyzed ? 'Refresh Analysis' : 'Analyze Job'}
                         </button>
                       </div>
                     </div>
@@ -275,6 +279,12 @@ const JobMatching: React.FC = () => {
                         <Loader2 className="h-8 w-8 mx-auto mb-3 text-primary-600 animate-spin" />
                         <p className="text-gray-600">AI is analyzing all employee skills against job requirements...</p>
                         <p className="text-gray-500 text-sm mt-1">Using batch processing for faster results</p>
+                      </div>
+                    ) : !hasBeenAnalyzed ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <Zap className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                        <p className="mb-2">Click "Analyze Job" to find the best candidates for this position</p>
+                        <p className="text-sm">Our AI will analyze all employees against the job requirements</p>
                       </div>
                     ) : topCandidates.length === 0 ? (
                       <div className="text-center py-8 text-gray-500">
