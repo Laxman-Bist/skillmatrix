@@ -4,6 +4,55 @@ import { Employee, Job, LearningPath } from '../types';
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
+// Retry configuration
+const MAX_RETRIES = 3;
+const BASE_DELAY = 1000; // 1 second
+
+// Helper function to wait for a specified amount of time
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Retry wrapper with exponential backoff
+const retryWithBackoff = async <T>(
+  operation: () => Promise<T>,
+  maxRetries: number = MAX_RETRIES
+): Promise<T> => {
+  let lastError: any;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error: any) {
+      lastError = error;
+      
+      // If it's not a rate limit error, don't retry
+      if (error.response?.status !== 429) {
+        throw error;
+      }
+      
+      // If we've exhausted all retries, throw the last error
+      if (attempt === maxRetries) {
+        throw error;
+      }
+      
+      // Calculate delay with exponential backoff
+      const delay = BASE_DELAY * Math.pow(2, attempt);
+      console.log(`Rate limit hit, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries + 1})`);
+      
+      await wait(delay);
+    }
+  }
+  
+  throw lastError;
+};
+
+// Helper function to make API calls with retry logic
+const makeGeminiRequest = async (requestData: any) => {
+  return retryWithBackoff(async () => {
+    const response = await axios.post(GEMINI_API_URL, requestData);
+    return response.data.candidates[0].content.parts[0].text;
+  });
+};
+
 export const generateLearningPath = async (
   employee: Employee,
   targetJob: Job
@@ -54,7 +103,7 @@ Please respond with ONLY a JSON object in this exact format:
 }`;
 
   try {
-    const response = await axios.post(GEMINI_API_URL, {
+    const requestData = {
       contents: [{
         parts: [{ text: prompt }]
       }],
@@ -64,9 +113,9 @@ Please respond with ONLY a JSON object in this exact format:
         topP: 0.95,
         maxOutputTokens: 2048,
       }
-    });
+    };
 
-    const responseText = response.data.candidates[0].content.parts[0].text;
+    const responseText = await makeGeminiRequest(requestData);
     
     // Clean the response text to extract JSON
     let cleanedResponse = responseText.trim();
@@ -137,7 +186,7 @@ Please respond with ONLY a JSON object in this exact format:
 }`;
 
   try {
-    const response = await axios.post(GEMINI_API_URL, {
+    const requestData = {
       contents: [{
         parts: [{ text: prompt }]
       }],
@@ -147,9 +196,9 @@ Please respond with ONLY a JSON object in this exact format:
         topP: 0.95,
         maxOutputTokens: 1024,
       }
-    });
+    };
 
-    const responseText = response.data.candidates[0].content.parts[0].text;
+    const responseText = await makeGeminiRequest(requestData);
     
     // Clean the response text to extract JSON
     let cleanedResponse = responseText.trim();
@@ -220,7 +269,7 @@ Please respond with ONLY a JSON object in this exact format:
 }`;
 
   try {
-    const response = await axios.post(GEMINI_API_URL, {
+    const requestData = {
       contents: [{
         parts: [{ text: prompt }]
       }],
@@ -230,9 +279,9 @@ Please respond with ONLY a JSON object in this exact format:
         topP: 0.8,
         maxOutputTokens: 512,
       }
-    });
+    };
 
-    const responseText = response.data.candidates[0].content.parts[0].text;
+    const responseText = await makeGeminiRequest(requestData);
     
     // Clean the response text to extract JSON
     let cleanedResponse = responseText.trim();
