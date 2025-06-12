@@ -2,7 +2,7 @@ import axios from 'axios';
 import { Employee, Job, LearningPath } from '../types';
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${API_KEY}`;
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
 export const generateLearningPath = async (
   employee: Employee,
@@ -22,36 +22,36 @@ Consider:
 4. Realistic timeline for skill acquisition
 5. Mix of theoretical and practical learning
 
-Format the response as a JSON object with:
-- targetSkills: array of skills to develop
-- estimatedTime: total time needed
-- priority: "High", "Medium", or "Low" based on skill gap
-- resources: array of recommended learning materials
-  - title
-  - provider
-  - skillsAddressed
-  - level
-  - duration
-  - type
+Employee Profile:
+- Name: ${employee.name}
+- Current Position: ${employee.position}
+- Department: ${employee.department}
+- Job Level: ${employee.jobLevel}
+- Current Skills: ${employee.skills.map(s => `${s.name} (Level ${s.level})`).join(', ')}
 
-Here is the employee and job data to analyze:
+Target Job:
+- Title: ${targetJob.title}
+- Department: ${targetJob.department}
+- Job Level: ${targetJob.jobLevel}
+- Required Skills: ${targetJob.requiredSkills.map(s => `${s.name} (Min Level ${s.minimumLevel}, ${s.importance})`).join(', ')}
 
-\`\`\`json
-${JSON.stringify({
-  employee: {
-    currentSkills: employee.skills,
-    position: employee.position,
-    department: employee.department
-  },
-  targetJob: {
-    title: targetJob.title,
-    requiredSkills: targetJob.requiredSkills,
-    department: targetJob.department
-  }
-}, null, 2)}
-\`\`\`
-
-Please respond with only the JSON object, no additional text.`;
+Please respond with ONLY a JSON object in this exact format:
+{
+  "targetSkills": ["skill1", "skill2"],
+  "estimatedTime": "X weeks",
+  "priority": "High|Medium|Low",
+  "resources": [
+    {
+      "title": "Course Title",
+      "provider": "Provider Name",
+      "skillsAddressed": ["skill1"],
+      "level": "Beginner|Intermediate|Advanced",
+      "duration": "X hours",
+      "type": "Course|Article|Video|Book|Workshop",
+      "url": "https://example.com"
+    }
+  ]
+}`;
 
   try {
     const response = await axios.post(GEMINI_API_URL, {
@@ -62,32 +62,51 @@ Please respond with only the JSON object, no additional text.`;
         temperature: 0.7,
         topK: 40,
         topP: 0.95,
-        maxOutputTokens: 1024,
+        maxOutputTokens: 2048,
       }
     });
 
-    const suggestion = JSON.parse(response.data.candidates[0].content.parts[0].text);
+    const responseText = response.data.candidates[0].content.parts[0].text;
+    
+    // Clean the response text to extract JSON
+    let cleanedResponse = responseText.trim();
+    
+    // Remove any markdown code blocks
+    if (cleanedResponse.startsWith('```json')) {
+      cleanedResponse = cleanedResponse.replace(/```json\n?/, '').replace(/\n?```$/, '');
+    } else if (cleanedResponse.startsWith('```')) {
+      cleanedResponse = cleanedResponse.replace(/```\n?/, '').replace(/\n?```$/, '');
+    }
+    
+    const suggestion = JSON.parse(cleanedResponse);
 
     return {
       id: crypto.randomUUID(),
       employeeId: employee.id,
-      targetSkills: suggestion.targetSkills,
-      resources: suggestion.resources.map((resource: any) => ({
+      targetSkills: suggestion.targetSkills || [],
+      resources: (suggestion.resources || []).map((resource: any) => ({
         id: crypto.randomUUID(),
-        ...resource
+        title: resource.title || 'Untitled Resource',
+        provider: resource.provider || 'Unknown Provider',
+        skillsAddressed: resource.skillsAddressed || [],
+        level: resource.level || 'Intermediate',
+        duration: resource.duration || '1 hour',
+        type: resource.type || 'Course',
+        url: resource.url || 'https://example.com'
       })),
-      estimatedCompletionTime: suggestion.estimatedTime,
-      priority: suggestion.priority
+      estimatedCompletionTime: suggestion.estimatedTime || '2 weeks',
+      priority: suggestion.priority || 'Medium'
     };
   } catch (error: any) {
+    console.error('Error generating learning path:', error);
+    
     if (error.response?.status === 429) {
-      console.error('Rate limit exceeded for Gemini API');
       throw new Error('API rate limit exceeded. Please try again later or check your API quota.');
     } else if (error.response?.status === 403) {
-      console.error('Invalid or expired API key');
       throw new Error('Invalid API key. Please check your Gemini API key configuration.');
+    } else if (error.response?.status === 400) {
+      throw new Error('Invalid request format. Please try again.');
     } else {
-      console.error('Error generating learning path:', error);
       throw new Error('Failed to generate learning path. Please try again.');
     }
   }
@@ -103,29 +122,19 @@ export const generateDepartmentRecommendations = async (
     throw new Error('API key not configured. Please check your environment variables.');
   }
 
-  const prompt = `As an AI career advisor, analyze the department's current skill distribution and industry trends to recommend:
-1. Critical skill gaps to address
-2. Emerging skills to develop
-3. Areas of potential skill redundancy
-4. Training priorities
+  const prompt = `As an AI career advisor, analyze the department's current skill distribution and industry trends.
 
-Format response as JSON with:
-- criticalGaps: array of skill gaps to address immediately
-- emergingSkills: array of future-relevant skills
-- redundancies: array of over-represented skills
-- recommendations: array of specific action items
+Department: ${departmentName}
+Current Skills: ${currentSkills.map(s => `${s.name} (Level ${s.level})`).join(', ')}
+Required Skills: ${requiredSkills.map(s => `${s.name} (Level ${s.level})`).join(', ')}
 
-Here is the department data to analyze:
-
-\`\`\`json
-${JSON.stringify({
-  department: departmentName,
-  currentSkills,
-  requiredSkills
-}, null, 2)}
-\`\`\`
-
-Please respond with only the JSON object, no additional text.`;
+Please respond with ONLY a JSON object in this exact format:
+{
+  "criticalGaps": ["skill1", "skill2"],
+  "emergingSkills": ["skill3", "skill4"],
+  "redundancies": ["skill5"],
+  "recommendations": ["action1", "action2"]
+}`;
 
   try {
     const response = await axios.post(GEMINI_API_URL, {
@@ -140,16 +149,29 @@ Please respond with only the JSON object, no additional text.`;
       }
     });
 
-    return JSON.parse(response.data.candidates[0].content.parts[0].text);
+    const responseText = response.data.candidates[0].content.parts[0].text;
+    
+    // Clean the response text to extract JSON
+    let cleanedResponse = responseText.trim();
+    
+    // Remove any markdown code blocks
+    if (cleanedResponse.startsWith('```json')) {
+      cleanedResponse = cleanedResponse.replace(/```json\n?/, '').replace(/\n?```$/, '');
+    } else if (cleanedResponse.startsWith('```')) {
+      cleanedResponse = cleanedResponse.replace(/```\n?/, '').replace(/\n?```$/, '');
+    }
+    
+    return JSON.parse(cleanedResponse);
   } catch (error: any) {
+    console.error('Error generating recommendations:', error);
+    
     if (error.response?.status === 429) {
-      console.error('Rate limit exceeded for Gemini API');
       throw new Error('API rate limit exceeded. Please try again later or check your API quota.');
     } else if (error.response?.status === 403) {
-      console.error('Invalid or expired API key');
       throw new Error('Invalid API key. Please check your Gemini API key configuration.');
+    } else if (error.response?.status === 400) {
+      throw new Error('Invalid request format. Please try again.');
     } else {
-      console.error('Error generating recommendations:', error);
       throw new Error('Failed to generate recommendations. Please try again.');
     }
   }
