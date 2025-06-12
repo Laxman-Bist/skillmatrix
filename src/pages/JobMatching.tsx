@@ -1,29 +1,39 @@
 import React, { useState } from 'react';
-import { Briefcase, Users, Search, Filter, Upload } from 'lucide-react';
+import { Briefcase, Users, Search, Filter, Upload, Star, TrendingUp } from 'lucide-react';
 import { employees, jobs, matchScores } from '../data';
-import JobCard from '../components/JobCard';
 
 const JobMatching: React.FC = () => {
-  const [selectedJob, setSelectedJob] = useState<string>('');
-  const [selectedEmployee, setSelectedEmployee] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   
-  // Filter matches based on selections
-  const filteredMatches = matchScores.filter(match => {
-    const matchesJob = selectedJob === '' || match.jobId === selectedJob;
-    const matchesEmployee = selectedEmployee === '' || match.employeeId === selectedEmployee;
-    
-    const job = jobs.find(j => j.id === match.jobId);
-    const employee = employees.find(e => e.id === match.employeeId);
-    
+  // Get unique departments from jobs
+  const departments = [...new Set(jobs.map(job => job.department))];
+  
+  // Filter jobs based on search and department
+  const filteredJobs = jobs.filter(job => {
     const matchesSearch = 
       searchTerm === '' || 
-      job?.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee?.name.toLowerCase().includes(searchTerm.toLowerCase());
+      job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      job.department.toLowerCase().includes(searchTerm.toLowerCase());
     
-    return matchesJob && matchesEmployee && matchesSearch;
+    const matchesDepartment = selectedDepartment === '' || job.department === selectedDepartment;
+    
+    return matchesSearch && matchesDepartment;
   });
+  
+  // Function to get top 5 candidates for a job
+  const getTopCandidatesForJob = (jobId: string) => {
+    return matchScores
+      .filter(match => match.jobId === jobId)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+      .map(match => {
+        const employee = employees.find(emp => emp.id === match.employeeId);
+        return { ...match, employee };
+      })
+      .filter(match => match.employee);
+  };
   
   return (
     <div className="space-y-6 animate-slide-up">
@@ -34,7 +44,7 @@ const JobMatching: React.FC = () => {
         </h2>
         
         <p className="text-gray-600 mb-6">
-          Our AI system analyzes employee skills and resumes against job descriptions to find the best internal candidates for open positions. This helps with career development and efficient resource allocation.
+          Our AI system analyzes employee skills and experience against job requirements to identify the best internal candidates for each position. This helps with career development and efficient resource allocation.
         </p>
         
         <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -44,7 +54,7 @@ const JobMatching: React.FC = () => {
             </div>
             <input
               type="text"
-              placeholder="Search for job title or employee name..."
+              placeholder="Search for job title or department..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="input pl-10"
@@ -56,39 +66,19 @@ const JobMatching: React.FC = () => {
               <Filter className="h-5 w-5 text-gray-400" />
             </div>
             <select
-              value={selectedJob}
-              onChange={(e) => setSelectedJob(e.target.value)}
+              value={selectedDepartment}
+              onChange={(e) => setSelectedDepartment(e.target.value)}
               className="input pl-10 pr-10 appearance-none min-w-[200px]"
             >
-              <option value="">All Jobs</option>
-              {jobs.map((job) => (
-                <option key={job.id} value={job.id}>
-                  {job.title}
+              <option value="">All Departments</option>
+              {departments.map((dept) => (
+                <option key={dept} value={dept}>
+                  {dept}
                 </option>
               ))}
             </select>
           </div>
           
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-              <Users className="h-5 w-5 text-gray-400" />
-            </div>
-            <select
-              value={selectedEmployee}
-              onChange={(e) => setSelectedEmployee(e.target.value)}
-              className="input pl-10 pr-10 appearance-none min-w-[200px]"
-            >
-              <option value="">All Employees</option>
-              {employees.map((employee) => (
-                <option key={employee.id} value={employee.id}>
-                  {employee.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        
-        <div className="flex justify-end mb-6">
           <button 
             className="btn btn-secondary flex items-center"
             onClick={() => setIsUploadModalOpen(true)}
@@ -98,88 +88,163 @@ const JobMatching: React.FC = () => {
           </button>
         </div>
         
-        {filteredMatches.length === 0 ? (
+        {filteredJobs.length === 0 ? (
           <div className="text-center py-10">
-            <p className="text-gray-500">No matches found for the selected criteria.</p>
+            <p className="text-gray-500">No jobs found matching your criteria.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredMatches.map((match) => {
-              const job = jobs.find(j => j.id === match.jobId);
-              if (!job) return null;
-              
-              const employee = employees.find(e => e.id === match.employeeId);
-              if (!employee) return null;
+          <div className="space-y-8">
+            {filteredJobs.map((job) => {
+              const topCandidates = getTopCandidatesForJob(job.id);
               
               return (
-                <div key={`${match.employeeId}-${match.jobId}`} className="card">
-                  <div className="mb-4 pb-3 border-b border-gray-100">
-                    <div className="flex justify-between items-center mb-3">
-                      <h3 className="font-medium">Match Overview</h3>
-                      <div className={`text-white text-sm font-medium rounded-full h-10 w-10 flex items-center justify-center ${
-                        match.score >= 80 ? 'bg-success-500' : 
-                        match.score >= 60 ? 'bg-warning-500' : 'bg-error-500'
-                      }`}>
-                        {match.score}%
+                <div key={job.id} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                  {/* Job Header */}
+                  <div className="bg-gradient-to-r from-primary-50 to-secondary-50 p-6 border-b border-gray-200">
+                    <div className="flex flex-col md:flex-row justify-between items-start">
+                      <div className="mb-4 md:mb-0">
+                        <h3 className="text-xl font-semibold text-gray-900 mb-2">{job.title}</h3>
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          <span className="badge badge-primary">{job.department}</span>
+                          <span className="badge badge-secondary">Level {job.jobLevel}</span>
+                          <span className="badge bg-gray-100 text-gray-700">
+                            {job.location} {job.isRemote && '(Remote)'}
+                          </span>
+                        </div>
+                        <p className="text-gray-600 text-sm max-w-2xl">{job.description}</p>
+                      </div>
+                      
+                      <div className="flex flex-col items-end">
+                        <div className="text-sm text-gray-500 mb-2">
+                          Posted: {new Date(job.postedDate).toLocaleDateString()}
+                        </div>
+                        <div className="flex items-center text-primary-700">
+                          <TrendingUp className="h-4 w-4 mr-1" />
+                          <span className="text-sm font-medium">
+                            {topCandidates.length} candidates found
+                          </span>
+                        </div>
                       </div>
                     </div>
                     
-                    <div className="flex items-center mb-2">
-                      <div className="h-10 w-10 rounded-full overflow-hidden mr-3">
-                        <img 
-                          src={employee.profileImage} 
-                          alt={employee.name} 
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                      <div>
-                        <p className="font-medium">{employee.name}</p>
-                        <p className="text-sm text-gray-600">{employee.position}</p>
+                    {/* Required Skills */}
+                    <div className="mt-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Required Skills</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {job.requiredSkills.map((skill) => (
+                          <span 
+                            key={skill.id} 
+                            className={`text-xs px-2 py-1 rounded-full ${
+                              skill.importance === 'required' 
+                                ? 'bg-error-100 text-error-800' 
+                                : skill.importance === 'preferred'
+                                ? 'bg-warning-100 text-warning-800'
+                                : 'bg-success-100 text-success-800'
+                            }`}
+                          >
+                            {skill.name} (Level {skill.minimumLevel}+)
+                          </span>
+                        ))}
                       </div>
                     </div>
                   </div>
                   
-                  <div className="mb-4">
-                    <h4 className="text-sm font-medium mb-2">Match Details</h4>
-                    <p className="text-sm text-gray-600">
-                      <span className="text-success-600 font-medium">{match.matchedSkills}</span> matched skills
-                    </p>
+                  {/* Top Candidates */}
+                  <div className="p-6">
+                    <h4 className="text-lg font-medium mb-4 flex items-center">
+                      <Star className="mr-2 h-5 w-5 text-warning-500" />
+                      Top 5 Candidates
+                    </h4>
                     
-                    {match.missingSkills.length > 0 && (
-                      <>
-                        <p className="text-sm text-gray-600 mt-2 mb-1">Missing skills:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {match.missingSkills.map((skill, i) => (
-                            <span key={i} className="badge badge-error">
-                              {skill}
-                            </span>
-                          ))}
-                        </div>
-                      </>
+                    {topCandidates.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                        <p>No suitable candidates found for this position.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                        {topCandidates.map((candidate, index) => (
+                          <div 
+                            key={candidate.employeeId} 
+                            className="bg-gray-50 rounded-lg p-4 hover:shadow-md transition-shadow duration-200"
+                          >
+                            {/* Rank Badge */}
+                            <div className="flex justify-between items-start mb-3">
+                              <div className={`text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center ${
+                                index === 0 ? 'bg-warning-500 text-white' :
+                                index === 1 ? 'bg-gray-400 text-white' :
+                                index === 2 ? 'bg-orange-600 text-white' :
+                                'bg-gray-300 text-gray-700'
+                              }`}>
+                                {index + 1}
+                              </div>
+                              
+                              <div className={`text-white text-xs font-medium rounded-full h-8 w-8 flex items-center justify-center ${
+                                candidate.score >= 80 ? 'bg-success-500' : 
+                                candidate.score >= 60 ? 'bg-warning-500' : 'bg-error-500'
+                              }`}>
+                                {candidate.score}%
+                              </div>
+                            </div>
+                            
+                            {/* Employee Info */}
+                            <div className="flex items-center mb-3">
+                              <div className="h-10 w-10 rounded-full overflow-hidden mr-3">
+                                <img 
+                                  src={candidate.employee!.profileImage} 
+                                  alt={candidate.employee!.name} 
+                                  className="h-full w-full object-cover"
+                                />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium text-sm truncate">{candidate.employee!.name}</p>
+                                <p className="text-xs text-gray-600 truncate">{candidate.employee!.position}</p>
+                                <span className="badge badge-secondary text-xs mt-1">
+                                  Level {candidate.employee!.jobLevel}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            {/* Match Details */}
+                            <div className="space-y-2">
+                              <div className="flex justify-between text-xs">
+                                <span className="text-gray-600">Matched Skills:</span>
+                                <span className="text-success-600 font-medium">{candidate.matchedSkills}</span>
+                              </div>
+                              
+                              {candidate.missingSkills.length > 0 && (
+                                <div>
+                                  <p className="text-xs text-gray-600 mb-1">Missing:</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {candidate.missingSkills.slice(0, 2).map((skill, i) => (
+                                      <span key={i} className="text-xs bg-error-100 text-error-700 px-1.5 py-0.5 rounded">
+                                        {skill}
+                                      </span>
+                                    ))}
+                                    {candidate.missingSkills.length > 2 && (
+                                      <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">
+                                        +{candidate.missingSkills.length - 2}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Action Button */}
+                            <button className="btn btn-primary w-full mt-3 text-xs py-1.5">
+                              View Profile
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
-                  
-                  <button className="btn btn-primary w-full">
-                    View Full Analysis
-                  </button>
                 </div>
               );
             })}
           </div>
         )}
-      </div>
-      
-      <div className="card">
-        <h3 className="text-xl font-semibold mb-6 flex items-center">
-          <Briefcase className="mr-2 h-5 w-5 text-secondary-600" />
-          Open Positions
-        </h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {jobs.map(job => (
-            <JobCard key={job.id} job={job} />
-          ))}
-        </div>
       </div>
       
       {/* Upload Resume Modal */}
