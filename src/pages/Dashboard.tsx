@@ -1,6 +1,6 @@
 import React from 'react';
 import { BarChart, PieChart, TrendingUp, Users, Award, Lightbulb, AlertTriangle } from 'lucide-react';
-import { dashboardData } from '../data/mockData';
+import { dashboardData } from '../data';
 import DoughnutChart from '../components/DoughnutChart';
 
 const Dashboard: React.FC = () => {

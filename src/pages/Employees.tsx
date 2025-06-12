@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Users, Filter } from 'lucide-react';
-import { employees } from '../data/mockData';
+import { employees } from '../data';
 import EmployeeCard from '../components/EmployeeCard';
 
 const Employees: React.FC = () => {

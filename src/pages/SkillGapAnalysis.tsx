@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BarChart2, Filter, Zap } from 'lucide-react';
-import { skillGapData } from '../data/mockData';
+import { skillGapData } from '../data';
 import DepartmentSkillsChart from '../components/DepartmentSkillsChart';
 import SkillGapBar from '../components/SkillGapBar';
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BookOpen, Users, Filter, Search, BookMarked, Award, Zap } from 'lucide-react';
-import { employees, learningPaths, learningResources } from '../data/mockData';
+import { employees, learningPaths, learningResources } from '../data';
 
 const LearningPaths: React.FC = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');

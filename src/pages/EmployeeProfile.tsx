@@ -4,7 +4,7 @@ import {
   ArrowLeft, Mail, Calendar, BarChart2, Award, Briefcase, BookOpen, 
   AlertTriangle, CheckCircle 
 } from 'lucide-react';
-import { employees, jobs, learningPaths, matchScores } from '../data/mockData';
+import { employees, jobs, learningPaths, matchScores } from '../data';
 import SkillLevelBar from '../components/SkillLevelBar';
 import JobCard from '../components/JobCard';
 

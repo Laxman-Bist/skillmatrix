@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Briefcase, Users, Search, Filter, Upload } from 'lucide-react';
-import { employees, jobs, matchScores } from '../data/mockData';
+import { employees, jobs, matchScores } from '../data';
 import JobCard from '../components/JobCard';
 
 const JobMatching: React.FC = () => {
