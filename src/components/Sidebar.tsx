@@ -40,7 +40,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             <div className="bg-white rounded-md p-1.5">
               <BarChart2 className="h-6 w-6 text-primary-700" />
             </div>
-            <span className="text-xl font-bold">SkillMatrix</span>
+            <span className="text-xl font-bold">Ski-LLM-atrix</span>
           </Link>
           <button
             onClick={onClose}
@@ -79,7 +79,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         <div className="p-4 border-t border-primary-600 mt-auto">
           <div className="bg-primary-800 rounded-lg p-3">
             <p className="text-sm text-primary-200">Powered by</p>
-            <p className="font-medium">Gemini AI</p>
+            <p className="font-medium">LLM</p>
           </div>
         </div>
       </aside>
