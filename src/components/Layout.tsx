@@ -5,9 +5,10 @@ import Header from './Header';
 
 interface LayoutProps {
   children: React.ReactNode;
+  userType: 'manager' | 'employee';
 }
 
-const Layout: React.FC<LayoutProps> = ({ children }) => {
+const Layout: React.FC<LayoutProps> = ({ children, userType }) => {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
 
@@ -16,31 +17,41 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   const getPageTitle = () => {
-    switch (location.pathname) {
-      case '/':
-        return 'Dashboard';
-      case '/employees':
-        return 'Employees';
-      case '/skill-gap-analysis':
-        return 'Skill Gap Analysis';
-      case '/job-matching':
-        return 'Job Matching';
-      case '/learning-paths':
-        return 'Learning Paths';
-      case '/settings':
-        return 'Settings';
-      default:
-        if (location.pathname.startsWith('/employees/')) {
-          return 'Employee Profile';
-        }
-        return 'SkillMatrix';
+    const path = location.pathname;
+    
+    if (path.includes('/dashboard')) {
+      return userType === 'manager' ? 'Manager Dashboard' : 'Employee Dashboard';
     }
+    if (path.includes('/employees')) {
+      if (path.includes('/employees/')) {
+        return 'Employee Profile';
+      }
+      return 'Employees';
+    }
+    if (path.includes('/skill-gap-analysis')) {
+      return 'Skill Gap Analysis';
+    }
+    if (path.includes('/job-matching')) {
+      return userType === 'manager' ? 'Job Matching' : 'Resume Analysis & Job Matching';
+    }
+    if (path.includes('/learning-paths')) {
+      return 'Learning Paths';
+    }
+    if (path.includes('/settings')) {
+      return 'Settings';
+    }
+    
+    return 'SkillMatrix';
   };
 
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar for desktop */}
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <Sidebar 
+        isOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)} 
+        userType={userType}
+      />
       
       {/* Main content area */}
       <div className="flex-1 flex flex-col overflow-hidden">

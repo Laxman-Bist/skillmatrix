@@ -1,23 +1,33 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { X, LayoutDashboard, Users, BarChart2, Briefcase, BookOpen, Settings } from 'lucide-react';
+import { X, LayoutDashboard, Users, BarChart2, Briefcase, BookOpen, Settings, Upload, TrendingUp } from 'lucide-react';
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  userType: 'manager' | 'employee';
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, userType }) => {
   const location = useLocation();
 
-  const navItems = [
-    { name: 'Dashboard', path: '/', icon: <LayoutDashboard size={20} /> },
-    { name: 'Employees', path: '/employees', icon: <Users size={20} /> },
-    { name: 'Skill Gap Analysis', path: '/skill-gap-analysis', icon: <BarChart2 size={20} /> },
-    { name: 'Job Matching', path: '/job-matching', icon: <Briefcase size={20} /> },
-    { name: 'Learning Paths', path: '/learning-paths', icon: <BookOpen size={20} /> },
-    { name: 'Settings', path: '/settings', icon: <Settings size={20} /> },
+  const managerNavItems = [
+    { name: 'Dashboard', path: '/manager/dashboard', icon: <LayoutDashboard size={20} /> },
+    { name: 'Employees', path: '/manager/employees', icon: <Users size={20} /> },
+    { name: 'Skill Gap Analysis', path: '/manager/skill-gap-analysis', icon: <BarChart2 size={20} /> },
+    { name: 'Job Matching', path: '/manager/job-matching', icon: <Briefcase size={20} /> },
+    { name: 'Learning Paths', path: '/manager/learning-paths', icon: <BookOpen size={20} /> },
+    { name: 'Settings', path: '/manager/settings', icon: <Settings size={20} /> },
   ];
+
+  const employeeNavItems = [
+    { name: 'Dashboard', path: '/employee/dashboard', icon: <LayoutDashboard size={20} /> },
+    { name: 'Job Matching', path: '/employee/job-matching', icon: <Upload size={20} /> },
+    { name: 'Learning Paths', path: '/employee/learning-paths', icon: <BookOpen size={20} /> },
+    { name: 'Settings', path: '/employee/settings', icon: <Settings size={20} /> },
+  ];
+
+  const navItems = userType === 'manager' ? managerNavItems : employeeNavItems;
 
   // Base classes for sidebar
   const sidebarClasses = `bg-primary-700 text-white w-64 h-screen flex flex-col transition-transform duration-300 ease-in-out fixed top-0 left-0 z-40 lg:relative lg:translate-x-0 ${
@@ -41,11 +51,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               <BarChart2 className="h-6 w-6 text-primary-700" />
             </div>
             <span className="text-xl font-bold">
-  Ski
-  <span className="text-2xl text-red-600 font-extrabold">LLM</span>
-  atrix
-</span>
-
+              Ski
+              <span className="text-2xl text-red-600 font-extrabold">LLM</span>
+              atrix
+            </span>
           </Link>
           <button
             onClick={onClose}
@@ -53,6 +62,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           >
             <X size={24} />
           </button>
+        </div>
+
+        {/* User Type Badge */}
+        <div className="px-6 mb-4">
+          <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+            userType === 'manager' 
+              ? 'bg-primary-800 text-primary-100' 
+              : 'bg-secondary-600 text-white'
+          }`}>
+            {userType === 'manager' ? 'Manager Portal' : 'Employee Portal'}
+          </div>
         </div>
 
         <nav className="mt-2 flex-1 overflow-y-auto">
