@@ -4,8 +4,16 @@ import { Employee, Job, LearningPath } from '../types';
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${API_KEY}`;
 
-const LEARNING_PATH_CONTEXT = `
-You are an AI career development advisor. Analyze the employee's current skills and the target job requirements to create a personalized learning path.
+export const generateLearningPath = async (
+  employee: Employee,
+  targetJob: Job
+): Promise<LearningPath | null> => {
+  if (!API_KEY) {
+    console.error('Gemini API key not found in environment variables');
+    throw new Error('API key not configured. Please check your environment variables.');
+  }
+
+  const prompt = `You are an AI career development advisor. Analyze the employee's current skills and the target job requirements to create a personalized learning path.
 
 Consider:
 1. Current skill levels vs required levels
@@ -25,37 +33,30 @@ Format the response as a JSON object with:
   - level
   - duration
   - type
-`;
 
-export const generateLearningPath = async (
-  employee: Employee,
-  targetJob: Job
-): Promise<LearningPath | null> => {
-  if (!API_KEY) {
-    console.error('Gemini API key not found in environment variables');
-    throw new Error('API key not configured. Please check your environment variables.');
+Here is the employee and job data to analyze:
+
+\`\`\`json
+${JSON.stringify({
+  employee: {
+    currentSkills: employee.skills,
+    position: employee.position,
+    department: employee.department
+  },
+  targetJob: {
+    title: targetJob.title,
+    requiredSkills: targetJob.requiredSkills,
+    department: targetJob.department
   }
+}, null, 2)}
+\`\`\`
 
-  const prompt = JSON.stringify({
-    employee: {
-      currentSkills: employee.skills,
-      position: employee.position,
-      department: employee.department
-    },
-    targetJob: {
-      title: targetJob.title,
-      requiredSkills: targetJob.requiredSkills,
-      department: targetJob.department
-    }
-  });
+Please respond with only the JSON object, no additional text.`;
 
   try {
     const response = await axios.post(GEMINI_API_URL, {
       contents: [{
-        parts: [
-          { text: LEARNING_PATH_CONTEXT },
-          { text: prompt }
-        ]
+        parts: [{ text: prompt }]
       }],
       generationConfig: {
         temperature: 0.7,
@@ -92,20 +93,6 @@ export const generateLearningPath = async (
   }
 };
 
-const SKILL_RECOMMENDATION_CONTEXT = `
-As an AI career advisor, analyze the department's current skill distribution and industry trends to recommend:
-1. Critical skill gaps to address
-2. Emerging skills to develop
-3. Areas of potential skill redundancy
-4. Training priorities
-
-Format response as JSON with:
-- criticalGaps: array of skill gaps to address immediately
-- emergingSkills: array of future-relevant skills
-- redundancies: array of over-represented skills
-- recommendations: array of specific action items
-`;
-
 export const generateDepartmentRecommendations = async (
   departmentName: string,
   currentSkills: Array<{ name: string; level: number }>,
@@ -116,19 +103,34 @@ export const generateDepartmentRecommendations = async (
     throw new Error('API key not configured. Please check your environment variables.');
   }
 
-  const prompt = JSON.stringify({
-    department: departmentName,
-    currentSkills,
-    requiredSkills
-  });
+  const prompt = `As an AI career advisor, analyze the department's current skill distribution and industry trends to recommend:
+1. Critical skill gaps to address
+2. Emerging skills to develop
+3. Areas of potential skill redundancy
+4. Training priorities
+
+Format response as JSON with:
+- criticalGaps: array of skill gaps to address immediately
+- emergingSkills: array of future-relevant skills
+- redundancies: array of over-represented skills
+- recommendations: array of specific action items
+
+Here is the department data to analyze:
+
+\`\`\`json
+${JSON.stringify({
+  department: departmentName,
+  currentSkills,
+  requiredSkills
+}, null, 2)}
+\`\`\`
+
+Please respond with only the JSON object, no additional text.`;
 
   try {
     const response = await axios.post(GEMINI_API_URL, {
       contents: [{
-        parts: [
-          { text: SKILL_RECOMMENDATION_CONTEXT },
-          { text: prompt }
-        ]
+        parts: [{ text: prompt }]
       }],
       generationConfig: {
         temperature: 0.7,
