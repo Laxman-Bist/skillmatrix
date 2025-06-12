@@ -1,11 +1,24 @@
-import React, { useState } from 'react';
-import { Briefcase, Users, Search, Filter, Upload, Star, TrendingUp } from 'lucide-react';
-import { employees, jobs, matchScores } from '../data';
+import React, { useState, useEffect } from 'react';
+import { Briefcase, Users, Search, Filter, Upload, Star, TrendingUp, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { employees, jobs } from '../data';
+import { calculateJobMatchScore } from '../services/gemini';
+
+interface JobMatchResult {
+  employeeId: string;
+  jobId: string;
+  score: number;
+  matchedSkills: number;
+  missingSkills: string[];
+  employee: typeof employees[0];
+}
 
 const JobMatching: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [jobMatches, setJobMatches] = useState<Record<string, JobMatchResult[]>>({});
+  const [loadingJobs, setLoadingJobs] = useState<Set<string>>(new Set());
+  const [errors, setErrors] = useState<Record<string, string>>({});
   
   // Get unique departments from jobs
   const departments = [...new Set(jobs.map(job => job.department))];
@@ -21,19 +34,76 @@ const JobMatching: React.FC = () => {
     
     return matchesSearch && matchesDepartment;
   });
-  
-  // Function to get top 5 candidates for a job
-  const getTopCandidatesForJob = (jobId: string) => {
-    return matchScores
-      .filter(match => match.jobId === jobId)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5)
-      .map(match => {
-        const employee = employees.find(emp => emp.id === match.employeeId);
-        return { ...match, employee };
-      })
-      .filter(match => match.employee);
+
+  // Function to calculate matches for a specific job
+  const calculateMatchesForJob = async (jobId: string) => {
+    const job = jobs.find(j => j.id === jobId);
+    if (!job) return;
+
+    setLoadingJobs(prev => new Set([...prev, jobId]));
+    setErrors(prev => ({ ...prev, [jobId]: '' }));
+
+    try {
+      const matchPromises = employees.map(async (employee) => {
+        try {
+          const matchResult = await calculateJobMatchScore(employee, job);
+          if (matchResult) {
+            return {
+              employeeId: employee.id,
+              jobId: job.id,
+              score: matchResult.score,
+              matchedSkills: matchResult.matchedSkills,
+              missingSkills: matchResult.missingSkills,
+              employee
+            };
+          }
+          return null;
+        } catch (error) {
+          console.error(`Error calculating match for employee ${employee.id}:`, error);
+          return null;
+        }
+      });
+
+      const results = await Promise.all(matchPromises);
+      const validResults = results.filter(Boolean) as JobMatchResult[];
+      
+      // Sort by score (highest first) and take top 5
+      const topCandidates = validResults
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 5);
+
+      setJobMatches(prev => ({
+        ...prev,
+        [jobId]: topCandidates
+      }));
+    } catch (error: any) {
+      console.error(`Error calculating matches for job ${jobId}:`, error);
+      setErrors(prev => ({
+        ...prev,
+        [jobId]: error.message || 'Failed to calculate job matches. Please try again.'
+      }));
+    } finally {
+      setLoadingJobs(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(jobId);
+        return newSet;
+      });
+    }
   };
+
+  // Function to refresh matches for a job
+  const refreshJobMatches = (jobId: string) => {
+    calculateMatchesForJob(jobId);
+  };
+
+  // Auto-calculate matches for visible jobs when component mounts
+  useEffect(() => {
+    filteredJobs.forEach(job => {
+      if (!jobMatches[job.id] && !loadingJobs.has(job.id)) {
+        calculateMatchesForJob(job.id);
+      }
+    });
+  }, [filteredJobs]);
   
   return (
     <div className="space-y-6 animate-slide-up">
@@ -95,7 +165,9 @@ const JobMatching: React.FC = () => {
         ) : (
           <div className="space-y-8">
             {filteredJobs.map((job) => {
-              const topCandidates = getTopCandidatesForJob(job.id);
+              const topCandidates = jobMatches[job.id] || [];
+              const isLoading = loadingJobs.has(job.id);
+              const error = errors[job.id];
               
               return (
                 <div key={job.id} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
@@ -118,12 +190,24 @@ const JobMatching: React.FC = () => {
                         <div className="text-sm text-gray-500 mb-2">
                           Posted: {new Date(job.postedDate).toLocaleDateString()}
                         </div>
-                        <div className="flex items-center text-primary-700">
-                          <TrendingUp className="h-4 w-4 mr-1" />
+                        <div className="flex items-center text-primary-700 mb-2">
+                          {isLoading ? (
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                          ) : (
+                            <TrendingUp className="h-4 w-4 mr-1" />
+                          )}
                           <span className="text-sm font-medium">
-                            {topCandidates.length} candidates found
+                            {isLoading ? 'Analyzing candidates...' : `${topCandidates.length} candidates analyzed`}
                           </span>
                         </div>
+                        <button
+                          onClick={() => refreshJobMatches(job.id)}
+                          disabled={isLoading}
+                          className="btn btn-secondary text-xs py-1.5 px-3 flex items-center disabled:opacity-50"
+                        >
+                          <RefreshCw className={`h-3 w-3 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
+                          Refresh Analysis
+                        </button>
                       </div>
                     </div>
                     
@@ -156,7 +240,21 @@ const JobMatching: React.FC = () => {
                       Top 5 Candidates
                     </h4>
                     
-                    {topCandidates.length === 0 ? (
+                    {error ? (
+                      <div className="bg-error-50 border border-error-200 rounded-lg p-4 flex items-center">
+                        <AlertCircle className="h-5 w-5 text-error-500 mr-2" />
+                        <div>
+                          <p className="text-error-700 font-medium">Error analyzing candidates</p>
+                          <p className="text-error-600 text-sm">{error}</p>
+                        </div>
+                      </div>
+                    ) : isLoading ? (
+                      <div className="text-center py-8">
+                        <Loader2 className="h-8 w-8 mx-auto mb-3 text-primary-600 animate-spin" />
+                        <p className="text-gray-600">AI is analyzing employee skills against job requirements...</p>
+                        <p className="text-gray-500 text-sm mt-1">This may take a few moments</p>
+                      </div>
+                    ) : topCandidates.length === 0 ? (
                       <div className="text-center py-8 text-gray-500">
                         <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                         <p>No suitable candidates found for this position.</p>
@@ -191,16 +289,16 @@ const JobMatching: React.FC = () => {
                             <div className="flex items-center mb-3">
                               <div className="h-10 w-10 rounded-full overflow-hidden mr-3">
                                 <img 
-                                  src={candidate.employee!.profileImage} 
-                                  alt={candidate.employee!.name} 
+                                  src={candidate.employee.profileImage} 
+                                  alt={candidate.employee.name} 
                                   className="h-full w-full object-cover"
                                 />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <p className="font-medium text-sm truncate">{candidate.employee!.name}</p>
-                                <p className="text-xs text-gray-600 truncate">{candidate.employee!.position}</p>
+                                <p className="font-medium text-sm truncate">{candidate.employee.name}</p>
+                                <p className="text-xs text-gray-600 truncate">{candidate.employee.position}</p>
                                 <span className="badge badge-secondary text-xs mt-1">
-                                  Level {candidate.employee!.jobLevel}
+                                  Level {candidate.employee.jobLevel}
                                 </span>
                               </div>
                             </div>

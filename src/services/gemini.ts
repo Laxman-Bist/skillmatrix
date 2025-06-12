@@ -176,3 +176,92 @@ Please respond with ONLY a JSON object in this exact format:
     }
   }
 };
+
+export const calculateJobMatchScore = async (
+  employee: Employee,
+  job: Job
+): Promise<{ score: number; matchedSkills: number; missingSkills: string[] } | null> => {
+  if (!API_KEY) {
+    console.error('Gemini API key not found in environment variables');
+    throw new Error('API key not configured. Please check your environment variables.');
+  }
+
+  const prompt = `You are an AI recruitment specialist. Analyze how well an employee matches a job position based on their skills and experience.
+
+Employee Profile:
+- Name: ${employee.name}
+- Current Position: ${employee.position}
+- Department: ${employee.department}
+- Job Level: ${employee.jobLevel}
+- Current Skills: ${employee.skills.map(s => `${s.name} (Level ${s.level}, Category: ${s.category})`).join(', ')}
+- Years of Experience: ${new Date().getFullYear() - new Date(employee.joinDate).getFullYear()} years
+
+Job Requirements:
+- Title: ${job.title}
+- Department: ${job.department}
+- Job Level: ${job.jobLevel}
+- Required Skills: ${job.requiredSkills.map(s => `${s.name} (Min Level ${s.minimumLevel}, Importance: ${s.importance})`).join(', ')}
+- Location: ${job.location}
+- Remote: ${job.isRemote}
+
+Scoring Criteria:
+1. Skill match percentage (0-100)
+2. Consider skill levels vs requirements
+3. Weight by importance (required > preferred > nice-to-have)
+4. Factor in job level compatibility
+5. Consider department experience
+6. Account for transferable skills
+
+Please respond with ONLY a JSON object in this exact format:
+{
+  "score": 85,
+  "matchedSkills": 4,
+  "missingSkills": ["skill1", "skill2"]
+}`;
+
+  try {
+    const response = await axios.post(GEMINI_API_URL, {
+      contents: [{
+        parts: [{ text: prompt }]
+      }],
+      generationConfig: {
+        temperature: 0.3,
+        topK: 20,
+        topP: 0.8,
+        maxOutputTokens: 512,
+      }
+    });
+
+    const responseText = response.data.candidates[0].content.parts[0].text;
+    
+    // Clean the response text to extract JSON
+    let cleanedResponse = responseText.trim();
+    
+    // Remove any markdown code blocks
+    if (cleanedResponse.startsWith('```json')) {
+      cleanedResponse = cleanedResponse.replace(/```json\n?/, '').replace(/\n?```$/, '');
+    } else if (cleanedResponse.startsWith('```')) {
+      cleanedResponse = cleanedResponse.replace(/```\n?/, '').replace(/\n?```$/, '');
+    }
+    
+    const result = JSON.parse(cleanedResponse);
+
+    return {
+      score: Math.min(Math.max(result.score || 0, 0), 100), // Ensure score is between 0-100
+      matchedSkills: result.matchedSkills || 0,
+      missingSkills: result.missingSkills || []
+    };
+  } catch (error: any) {
+    console.error('Error calculating job match score:', error);
+    
+    if (error.response?.status === 429) {
+      throw new Error('API rate limit exceeded. Please try again later or check your API quota.');
+    } else if (error.response?.status === 403) {
+      throw new Error('Invalid API key. Please check your Gemini API key configuration.');
+    } else if (error.response?.status === 400) {
+      throw new Error('Invalid request format. Please try again.');
+    } else {
+      throw new Error('Failed to calculate job match score. Please try again.');
+    }
+  }
+};
