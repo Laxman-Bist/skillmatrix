@@ -1,10 +1,16 @@
 import React, { useState } from 'react';
-import { BookOpen, Users, Filter, Search, BookMarked, Award, Zap } from 'lucide-react';
-import { employees, learningPaths, learningResources } from '../data';
+import { BookOpen, Users, Filter, Search, BookMarked, Award, Zap, Sparkles, User, Briefcase, Clock, Target, CheckCircle, AlertCircle } from 'lucide-react';
+import { employees, learningPaths, learningResources, jobs } from '../data';
+import { generateLearningPath } from '../services/gemini';
+import { LearningPath } from '../types';
 
 const LearningPaths: React.FC = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');
+  const [selectedJob, setSelectedJob] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedPath, setGeneratedPath] = useState<LearningPath | null>(null);
+  const [error, setError] = useState<string>('');
   
   // Get filtered learning paths
   const filteredLearningPaths = learningPaths.filter(path => {
@@ -49,18 +55,257 @@ const LearningPaths: React.FC = () => {
       learningResources.find(resource => resource.id === resourceId)
     )
     .filter(Boolean);
+
+  const handleGenerateLearningPath = async () => {
+    if (!selectedEmployee || !selectedJob) {
+      setError('Please select both an employee and a job to generate a learning path.');
+      return;
+    }
+
+    const employee = employees.find(emp => emp.id === selectedEmployee);
+    const job = jobs.find(j => j.id === selectedJob);
+
+    if (!employee || !job) {
+      setError('Selected employee or job not found.');
+      return;
+    }
+
+    setIsGenerating(true);
+    setError('');
+    setGeneratedPath(null);
+
+    try {
+      const path = await generateLearningPath(employee, job);
+      if (path) {
+        setGeneratedPath(path);
+      } else {
+        setError('Failed to generate learning path. Please try again.');
+      }
+    } catch (err) {
+      setError('An error occurred while generating the learning path. Please check your API configuration.');
+      console.error('Learning path generation error:', err);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const resetGeneration = () => {
+    setSelectedEmployee('');
+    setSelectedJob('');
+    setGeneratedPath(null);
+    setError('');
+  };
   
   return (
     <div className="space-y-6 animate-slide-up">
+      {/* AI Learning Path Generator */}
       <div className="card">
         <h2 className="text-xl font-semibold mb-6 flex items-center">
-          <BookOpen className="mr-2 h-5 w-5 text-primary-700" />
-          Personalized Learning Paths
+          <Sparkles className="mr-2 h-5 w-5 text-primary-700" />
+          AI Learning Path Generator
         </h2>
         
         <p className="text-gray-600 mb-6">
-          Our AI analyzes employee skills against job requirements and industry standards to create personalized learning paths. These customized learning plans help employees bridge skill gaps and advance their careers.
+          Select an employee and target job position to generate a personalized learning path using our AI system. 
+          The AI will analyze skill gaps and recommend specific resources to bridge them.
         </p>
+        
+        <div className="bg-gradient-to-r from-primary-50 to-secondary-50 rounded-lg p-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <User className="inline h-4 w-4 mr-1" />
+                Select Employee
+              </label>
+              <select
+                value={selectedEmployee}
+                onChange={(e) => setSelectedEmployee(e.target.value)}
+                className="input w-full"
+                disabled={isGenerating}
+              >
+                <option value="">Choose an employee...</option>
+                {employees.map((employee) => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.name} - {employee.position} (Level {employee.jobLevel})
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Briefcase className="inline h-4 w-4 mr-1" />
+                Target Job Position
+              </label>
+              <select
+                value={selectedJob}
+                onChange={(e) => setSelectedJob(e.target.value)}
+                className="input w-full"
+                disabled={isGenerating}
+              >
+                <option value="">Choose a target job...</option>
+                {jobs.map((job) => (
+                  <option key={job.id} value={job.id}>
+                    {job.title} - {job.department} (Level {job.jobLevel})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button 
+              onClick={handleGenerateLearningPath}
+              disabled={!selectedEmployee || !selectedJob || isGenerating}
+              className="btn btn-primary flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isGenerating ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Generating with AI...
+                </>
+              ) : (
+                <>
+                  <Zap className="mr-2 h-4 w-4" />
+                  Generate Learning Path
+                </>
+              )}
+            </button>
+            
+            {(selectedEmployee || selectedJob || generatedPath) && (
+              <button 
+                onClick={resetGeneration}
+                className="btn bg-gray-200 hover:bg-gray-300 text-gray-800"
+                disabled={isGenerating}
+              >
+                Reset
+              </button>
+            )}
+          </div>
+        </div>
+        
+        {/* Error Display */}
+        {error && (
+          <div className="bg-error-50 border-l-4 border-error-500 p-4 rounded-r-lg mb-6">
+            <div className="flex items-center">
+              <AlertCircle className="h-5 w-5 text-error-500 mr-2" />
+              <p className="text-error-700 font-medium">Error</p>
+            </div>
+            <p className="text-error-600 text-sm mt-1">{error}</p>
+          </div>
+        )}
+        
+        {/* Generated Learning Path Display */}
+        {generatedPath && (
+          <div className="bg-white border-2 border-primary-200 rounded-xl shadow-sm overflow-hidden mb-6">
+            <div className="bg-gradient-to-r from-primary-600 to-secondary-600 text-white p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-semibold mb-2 flex items-center">
+                    <Sparkles className="mr-2 h-5 w-5" />
+                    AI-Generated Learning Path
+                  </h3>
+                  <p className="text-primary-100">
+                    Personalized for {employees.find(e => e.id === selectedEmployee)?.name} → {jobs.find(j => j.id === selectedJob)?.title}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <div className={`badge text-white ${
+                    generatedPath.priority === 'High' 
+                      ? 'bg-error-500' 
+                      : generatedPath.priority === 'Medium'
+                      ? 'bg-warning-500'
+                      : 'bg-success-500'
+                  }`}>
+                    {generatedPath.priority} Priority
+                  </div>
+                  <div className="flex items-center mt-2 text-primary-100">
+                    <Clock className="h-4 w-4 mr-1" />
+                    <span className="text-sm">{generatedPath.estimatedCompletionTime}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              <div className="mb-6">
+                <h4 className="text-lg font-medium mb-3 flex items-center">
+                  <Target className="mr-2 h-5 w-5 text-primary-600" />
+                  Target Skills to Develop
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {generatedPath.targetSkills.map((skill, index) => (
+                    <span key={index} className="badge badge-primary text-sm">
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="mb-6">
+                <h4 className="text-lg font-medium mb-4 flex items-center">
+                  <BookOpen className="mr-2 h-5 w-5 text-secondary-600" />
+                  Recommended Learning Resources
+                </h4>
+                <div className="space-y-4">
+                  {generatedPath.resources.map((resource, index) => (
+                    <div key={resource.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-start">
+                          <div className="bg-primary-600 text-white rounded-full h-8 w-8 flex items-center justify-center mr-3 mt-1 text-sm font-medium">
+                            {index + 1}
+                          </div>
+                          <div>
+                            <h5 className="font-semibold text-gray-900 mb-1">{resource.title}</h5>
+                            <p className="text-sm text-gray-600 mb-2">
+                              {resource.provider} • {resource.level} • {resource.duration}
+                            </p>
+                            <div className="flex flex-wrap gap-1 mb-2">
+                              {resource.skillsAddressed.map((skill, i) => (
+                                <span key={i} className="text-xs bg-secondary-100 text-secondary-800 px-2 py-1 rounded-full">
+                                  {skill}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="badge badge-secondary mb-2">{resource.type}</span>
+                          <a 
+                            href={resource.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="text-primary-600 hover:text-primary-800 text-sm font-medium"
+                          >
+                            View Resource →
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="bg-success-50 border border-success-200 rounded-lg p-4 flex items-center justify-between">
+                <div className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-success-600 mr-2" />
+                  <span className="text-success-800 font-medium">AI-powered learning path generated successfully!</span>
+                </div>
+                <button className="btn btn-success text-sm">
+                  Save Learning Path
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Existing Learning Paths */}
+      <div className="card">
+        <h2 className="text-xl font-semibold mb-6 flex items-center">
+          <BookOpen className="mr-2 h-5 w-5 text-primary-700" />
+          Existing Learning Paths
+        </h2>
         
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="relative flex-1">
@@ -93,11 +338,6 @@ const LearningPaths: React.FC = () => {
               ))}
             </select>
           </div>
-          
-          <button className="btn btn-secondary">
-            <Zap className="mr-2 h-4 w-4" />
-            Generate New Paths
-          </button>
         </div>
         
         {filteredLearningPaths.length === 0 ? (
@@ -193,7 +433,7 @@ const LearningPaths: React.FC = () => {
                   <div className="bg-gray-50 p-4 border-t border-gray-200 flex justify-between items-center">
                     <div className="flex items-center">
                       <Award className="h-5 w-5 text-primary-700 mr-2" />
-                      <span className="text-sm font-medium">AI-generated learning path</span>
+                      <span className="text-sm font-medium">Learning path</span>
                     </div>
                     <button className="btn btn-primary">
                       Track Progress
